@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\User;
+use App\LogTool\UserRegistrationLog;
 use App\Mail\ConfirmationMail;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -65,9 +66,10 @@ class RegisterController extends Controller
      */
     protected function sendConfirmationEmail(User $user)
     {
-        info($user->name . $user->created_at);
         $code = hash('sha256', $user->name . $user->created_at->format('Y-m-d H:m:s') );
         Mail::to($user)->send( new ConfirmationMail($user, $code) );
+
+        return;
     }
 
     /**
@@ -84,8 +86,6 @@ class RegisterController extends Controller
             'password' => bcrypt($data['password']),
         ]);
 
-        $this->sendConfirmationEmail($user);
-
         return $user;
     }
 
@@ -98,7 +98,11 @@ class RegisterController extends Controller
     {
         $this->validator($request->all())->validate();
 
-        event(new Registered($user = $this->create($request->all())));
+        event(new Registered( $user = $this->create( $request->all() )));
+
+        $this->sendConfirmationEmail($user);
+
+        new UserRegistrationLog( $user->id, $user->created_at->format('Y-m-d H:m:s') );
 
         return $this->registered($request, $user)
             ?: redirect($this->redirectPath());

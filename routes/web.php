@@ -20,3 +20,4 @@ Auth::routes();
 Route::get('/home', 'HomeController@index')->name('home');
 Route::get('/afterRegistrationPage', 'Auth\RegisterController@afterRegistrationPage')->name('afterRegistrationPage');
 Route::get('/confirmRegistration/{user}/{code}', 'Auth\RegisterController@confirmRegistration')->name('confirmRegistration');
+Route::get('/showRegistrationLog', 'RegistrationLogsController@showRegistrationLog')->name('showRegistrationLog');
