@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\User;
+use App\Mail\ConfirmationMail;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Auth\Events\Registered;
 
 class RegisterController extends Controller
 {
@@ -27,7 +31,7 @@ class RegisterController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/home';
+    protected $redirectTo = '/afterRegistrationPage';
 
     /**
      * Create a new controller instance.
@@ -55,6 +59,18 @@ class RegisterController extends Controller
     }
 
     /**
+     * Sending confirmation email to currently registered user.
+     *
+     * @param User|object $user
+     */
+    protected function sendConfirmationEmail(User $user)
+    {
+        info($user->name . $user->created_at);
+        $code = hash('sha256', $user->name . $user->created_at->format('Y-m-d H:m:s') );
+        Mail::to($user)->send( new ConfirmationMail($user, $code) );
+    }
+
+    /**
      * Create a new user instance after a valid registration.
      *
      * @param  array  $data
@@ -62,10 +78,62 @@ class RegisterController extends Controller
      */
     protected function create(array $data)
     {
-        return User::create([
+        $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => bcrypt($data['password']),
         ]);
+
+        $this->sendConfirmationEmail($user);
+
+        return $user;
     }
+
+    /**
+     * Overwrited method. Reigister new user without log in.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     */
+    public function register(Request $request)
+    {
+        $this->validator($request->all())->validate();
+
+        event(new Registered($user = $this->create($request->all())));
+
+        return $this->registered($request, $user)
+            ?: redirect($this->redirectPath());
+    }
+
+    /**
+     * Redirect user after registration to after registration info page
+     */
+    public function afterRegistrationPage()
+    {
+        $message = 'Check your mail box for registration confirmation';
+        return view('messagePage', compact('message'));
+    }
+
+    /**
+     * Confirm user registration
+     *
+     * @param User|object $user
+     * @param string GET parameter $code
+     */
+    public function confirmRegistration(User $user, $code)
+    {
+        $validationCode = hash('sha256', $user->name . $user->created_at->format('Y-m-d H:m:s') );
+
+        if($validationCode == $code){
+            $user->confirmed = 1;
+            $user->save();
+
+            $this->guard()->login($user);
+
+            return redirect('/home');
+        }else{
+            $message= 'Wrong validation code';
+            return view('messagePage', compact('message'));
+        }
+    }
+
 }

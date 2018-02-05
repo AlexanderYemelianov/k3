@@ -79,7 +79,7 @@
 
             <div class="content">
                 <div class="title m-b-md">
-                    Laravel
+                    Laravel for K3-Soft
                 </div>
 
                 <div class="links">
